@@ -1,0 +1,32 @@
+Import-Module $env:SyncroModule
+
+$IDs = "1001", "1000"
+$ExcludedApplications = "*Slack*"
+$MaxCount = '10'
+$LogFilter = @{
+    LogName = 'Application'
+    LevelDisplayName = 'Error'
+    ID      = $IDs
+    StartTime = (get-date).AddDays(-7)
+} 
+$AssetName = $env:computername
+$Last7Days = Get-WinEvent -FilterHashTable $LogFilter -ErrorAction SilentlyContinue
+$DateTime = Get-Date -Format "MM-dd-yyyy"
+$File = -Join("C:\Utilities\Logs\AppCrashes_",$AssetName, "_", $DateTime, ".txt")
+$AppsCrashes = $Last7Days | Format-List | Out-String
+$AppCrashOut = Write-Host $AppsCrashes
+ 
+ 
+if ($Last7Days.count -ge $MaxCount) {
+    Write-Output "Unhealthy - The maximum application crash logs are higher than $MaxCount"
+    Get-WinEvent -FilterHashTable $LogFilter | Format-List | Out-File -FilePath $File
+    Rmm-Alert -Category 'App Crashes' -Body 'There has been more than 10 Application crashes in the last 7 days'
+    Write-Output $AppsCrashes
+    Upload-File -FilePath $File
+
+}
+ 
+if (!$Last7Days) {
+    Write-Output "Healthy - No app crash logs found"
+}
+
